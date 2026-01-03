@@ -1,13 +1,8 @@
-from textnode import TextNode
+from recursive_file_copier import recursive_file_copier
+
+
 def main():
-  first_text = TextNode("A man of war", 'link', 'https://www.google.com')
-  
-  print(first_text)
-  
-  
-  
-  
-  
-  
-  
+    recursive_file_copier("static", "public")
+
+
 main()
