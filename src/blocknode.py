@@ -1,6 +1,7 @@
 from enum import Enum
 from textnode_utils import markdown_to_blocks, text_to_textnodes, text_node_to_html_node
 from htmlnode import ParentNode, LeafNode
+from textnode import TextNode, TextType
 
 
 class BlockType(Enum):
@@ -17,7 +18,7 @@ def block_to_block_type(block):
 
     if block.startswith(("# ", "## ", "### ", "#### ", "##### ", "###### ")):
         return BlockType.HEADING
-    if len(lines) > 1 and lines[0].startswith("```") and lines[-1].startswith("```"):
+    if block.startswith("```") and block.endswith("```"):
         return BlockType.CODE
     if block.startswith(">"):
         for line in lines:
@@ -28,14 +29,14 @@ def block_to_block_type(block):
         for line in lines:
             if not line.startswith("- "):
                 return BlockType.PARAGRAPH
-        return BlockType.ULIST
+        return BlockType.UNORDERED_LIST
     if block.startswith("1. "):
         i = 1
         for line in lines:
             if not line.startswith(f"{i}. "):
                 return BlockType.PARAGRAPH
             i += 1
-        return BlockType.OLIST
+        return BlockType.ORDERED_LIST
     return BlockType.PARAGRAPH
 
 
@@ -63,23 +64,32 @@ def markdown_to_html_node(md):
             children.append(ParentNode("blockquote", text_to_children(quoted)))
 
         elif block_type == BlockType.UNORDERED_LIST:
-            items = []
-            for line in block.split("\n"):
-                items.append(ParentNode("li", text_to_children(line[2:].lstrip())))
+            items = block.split("\n")
+            html_items = []
+            for item in items:
+                text = item[2:].lstrip()
+                item_children = text_to_children(text)
+                html_items.append(ParentNode("li", item_children))
 
-            children.append(ParentNode("ul", text_to_children(items)))
+            children.append(ParentNode("ul", html_items))
 
         elif block_type == BlockType.ORDERED_LIST:
+            lines = block.split("\n")
             items = []
-            for line in block.split("\n"):
-                items.append(ParentNode("li", text_to_children(line[2:].lstrip())))
+            for line in lines:
+                line_children = text_to_children(line[2:].lstrip())
+                items.append(ParentNode("li", line_children))
 
-            children.append(ParentNode("ol", text_to_children(items)))
+            children.append(ParentNode("ol", items))
 
         elif block_type == BlockType.CODE:
+            if not block.startswith("```") or not block.endswith("```"):
+                raise ValueError("Invalid code block")
             code_text = block[3:-3].strip()
-            code_node = LeafNode(None, code_text)
-            children.append(ParentNode("pre", [ParentNode("code"), [code_node]]))
+            code_node = TextNode(code_text, TextType.TEXT)
+            child= text_node_to_html_node(code_node)
+            code = ParentNode("code", [child])
+            children.append(ParentNode("pre", [code]))
 
         else:
             raise ValueError(f"Unknown block type: {block_type}")
